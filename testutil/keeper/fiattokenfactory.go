@@ -17,6 +17,31 @@ import (
 	tmdb "github.com/tendermint/tm-db"
 )
 
+type MockFiatTokenfactoryKeeper struct{}
+
+// Burn implements types.FiatTokenfactoryKeeper.
+func (MockFiatTokenfactoryKeeper) Burn(ctx sdk.Context, msg *types.MsgBurn) (*types.MsgBurnResponse, error) {
+	panic("unimplemented")
+}
+
+// GetMintingDenom implements types.FiatTokenfactoryKeeper.
+func (MockFiatTokenfactoryKeeper) GetMintingDenom(ctx sdk.Context) (val types.MintingDenom) {
+	panic("unimplemented")
+}
+
+// Mint implements types.FiatTokenfactoryKeeper.
+func (MockFiatTokenfactoryKeeper) Mint(ctx sdk.Context, msg *types.MsgMint) (*types.MsgMintResponse, error) {
+	panic("unimplemented")
+}
+
+// TODO: add to use interfaces here
+// func (MockFiatTokenfactoryKeeper) SpendableCoins(ctx sdk.Context, addr sdk.AccAddress) sdk.Coins {
+// 	return nil
+// }
+// func (MockFiatTokenfactoryKeeper) MintCoins(ctx sdk.Context, moduleName string, amt sdk.Coins) error {
+// 	return nil
+// }
+
 func FiatTokenfactoryKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 	storeKey := sdk.NewKVStoreKey(types.StoreKey)
 

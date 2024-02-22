@@ -7,6 +7,9 @@ import (
 
 type MockBankKeeper struct{}
 
+func (MockBankKeeper) GetBalance(ctx sdk.Context, addr sdk.AccAddress, denom string) sdk.Coin {
+	return sdk.Coin{}
+}
 func (MockBankKeeper) SpendableCoins(ctx sdk.Context, addr sdk.AccAddress) sdk.Coins {
 	return nil
 }
