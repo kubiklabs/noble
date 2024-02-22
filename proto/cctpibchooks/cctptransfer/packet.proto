@@ -1,0 +1,13 @@
+syntax = "proto3";
+package cctpibchooks.autocctp;
+
+option go_package = "github.com/kubiklabs/cctp-ibc-hooks/x/autocctp/types";
+
+message AutoCctpPacketData {
+    oneof packet {
+        NoData noData = 1;
+    }
+}
+
+message NoData {
+}

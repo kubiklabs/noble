@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package cctpibchooks.autocctp;
+
+import "gogoproto/gogo.proto";
+import "cctpibchooks/autocctp/params.proto";
+
+option go_package = "github.com/kubiklabs/cctp-ibc-hooks/x/autocctp/types";
+
+// GenesisState defines the autocctp module's genesis state.
+message GenesisState {
+  Params params  = 1 [(gogoproto.nullable) = false];
+  // string port_id = 2;  // reason: this module links to ibc transfer, so new port is needed 
+}
+

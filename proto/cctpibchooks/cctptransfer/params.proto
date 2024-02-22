@@ -1,0 +1,14 @@
+syntax = "proto3";
+package cctpibchooks.autocctp;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/kubiklabs/cctp-ibc-hooks/x/autocctp/types";
+
+// Params defines the parameters for the module.
+message Params {
+  option (gogoproto.goproto_stringer) = false;
+  // optionally, turn off each module
+  bool cctp_active = 1;
+  // bool claim_active = 2; TODO: add more actions here
+}
