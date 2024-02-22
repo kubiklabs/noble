@@ -107,6 +107,10 @@ import (
 	cctp "github.com/circlefin/noble-cctp/x/cctp"
 	cctpkeeper "github.com/circlefin/noble-cctp/x/cctp/keeper"
 	cctptypes "github.com/circlefin/noble-cctp/x/cctp/types"
+
+	autocctp "github.com/noble-assets/noble/v5/x/autocctp"
+	autocctpkeeper "github.com/noble-assets/noble/v5/x/autocctp/keeper"
+	autocctptypes "github.com/noble-assets/noble/v5/x/autocctp/types"
 )
 
 const (
@@ -149,6 +153,7 @@ var (
 		tariff.AppModuleBasic{},
 		cctp.AppModuleBasic{},
 		paramauthorityibc.AppModuleBasic{},
+		autocctp.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -225,6 +230,7 @@ type App struct {
 	FiatTokenFactoryKeeper *fiattokenfactorymodulekeeper.Keeper
 	TariffKeeper           tariffkeeper.Keeper
 	CCTPKeeper             *cctpkeeper.Keeper
+	AutoCctpKeeper         autocctpkeeper.Keeper
 
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
@@ -263,7 +269,7 @@ func New(
 		paramstypes.StoreKey, ibchost.StoreKey, upgradetypes.StoreKey, feegrant.StoreKey, evidencetypes.StoreKey,
 		ibctransfertypes.StoreKey, icahosttypes.StoreKey, capabilitytypes.StoreKey,
 		tokenfactorymoduletypes.StoreKey, fiattokenfactorymoduletypes.StoreKey, packetforwardtypes.StoreKey, stakingtypes.StoreKey,
-		cctptypes.StoreKey,
+		cctptypes.StoreKey, autocctptypes.StoreKey,
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
@@ -474,6 +480,14 @@ func New(
 		app.FiatTokenFactoryKeeper,
 	)
 
+	app.AutoCctpKeeper = *autocctpkeeper.NewKeeper(
+		appCodec,
+		keys[autocctptypes.StoreKey],
+		app.GetSubspace(autocctptypes.ModuleName),
+		*app.CCTPKeeper,
+	)
+	autoCctpModule := autocctp.NewAppModule(appCodec, app.AutoCctpKeeper)
+
 	var transferStack ibcporttypes.IBCModule
 	transferStack = transfer.NewIBCModule(app.TransferKeeper)
 	transferStack = packetforward.NewIBCMiddleware(
@@ -484,6 +498,7 @@ func New(
 		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,
 	)
 	transferStack = blockibc.NewIBCMiddleware(transferStack, app.TokenFactoryKeeper, app.FiatTokenFactoryKeeper)
+	transferStack = autocctp.NewIBCModule(app.AutoCctpKeeper, transferStack)
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
@@ -529,6 +544,7 @@ func New(
 		globalfee.NewAppModule(app.GetSubspace(globalfee.ModuleName)),
 		tariff.NewAppModule(appCodec, app.TariffKeeper, app.AccountKeeper, app.BankKeeper),
 		cctp.NewAppModule(appCodec, app.AccountKeeper, app.BankKeeper, app.CCTPKeeper),
+		autoCctpModule,
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -560,6 +576,7 @@ func New(
 		fiattokenfactorymoduletypes.ModuleName,
 		globalfee.ModuleName,
 		cctptypes.ModuleName,
+		autocctptypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -586,6 +603,7 @@ func New(
 		globalfee.ModuleName,
 		tarifftypes.ModuleName,
 		cctptypes.ModuleName,
+		autocctptypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -617,6 +635,7 @@ func New(
 		fiattokenfactorymoduletypes.ModuleName,
 		globalfee.ModuleName,
 		cctptypes.ModuleName,
+		autocctptypes.ModuleName,
 
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 	)
@@ -846,6 +865,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(upgradetypes.ModuleName)
 	paramsKeeper.Subspace(globalfee.ModuleName)
 	paramsKeeper.Subspace(cctptypes.ModuleName)
+	paramsKeeper.Subspace(autocctptypes.ModuleName)
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
 
 	return paramsKeeper
