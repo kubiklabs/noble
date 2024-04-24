@@ -46,24 +46,6 @@ func (im IBCModule) OnChanOpenInit(
 	counterparty channeltypes.Counterparty,
 	version string,
 ) (string, error) {
-
-	// // Require portID is the portID module is bound to
-	// boundPort := im.keeper.GetPort(ctx)
-	// if boundPort != portID {
-	// 	return "", sdkerrors.Wrapf(porttypes.ErrInvalidPort, "invalid port: %s, expected %s", portID, boundPort)
-	// }
-
-	// if version != types.Version {
-	// 	return "", sdkerrors.Wrapf(types.ErrInvalidVersion, "got %s, expected %s", version, types.Version)
-	// }
-
-	// // Claim channel capability passed back by IBC module
-	// if err := im.keeper.ClaimCapability(ctx, chanCap, host.ChannelCapabilityPath(portID, channelID)); err != nil {
-	// 	return "", err
-	// }
-
-	// return version, nil
-
 	return im.app.OnChanOpenInit(
 		ctx,
 		order,
@@ -87,30 +69,6 @@ func (im IBCModule) OnChanOpenTry(
 	counterparty channeltypes.Counterparty,
 	counterpartyVersion string,
 ) (string, error) {
-
-	// // Require portID is the portID module is bound to
-	// boundPort := im.keeper.GetPort(ctx)
-	// if boundPort != portID {
-	// 	return "", sdkerrors.Wrapf(porttypes.ErrInvalidPort, "invalid port: %s, expected %s", portID, boundPort)
-	// }
-
-	// if counterpartyVersion != types.Version {
-	// 	return "", sdkerrors.Wrapf(types.ErrInvalidVersion, "invalid counterparty version: got: %s, expected %s", counterpartyVersion, types.Version)
-	// }
-
-	// // Module may have already claimed capability in OnChanOpenInit in the case of crossing hellos
-	// // (ie chainA and chainB both call ChanOpenInit before one of them calls ChanOpenTry)
-	// // If module can already authenticate the capability then module already owns it so we don't need to claim
-	// // Otherwise, module does not have channel capability and we must claim it from IBC
-	// if !im.keeper.AuthenticateCapability(ctx, chanCap, host.ChannelCapabilityPath(portID, channelID)) {
-	// 	// Only claim channel capability passed back by IBC module if we do not already own it
-	// 	if err := im.keeper.ClaimCapability(ctx, chanCap, host.ChannelCapabilityPath(portID, channelID)); err != nil {
-	// 		return "", err
-	// 	}
-	// }
-
-	// return types.Version, nil
-
 	return im.app.OnChanOpenTry(
 		ctx,
 		order,
@@ -131,11 +89,6 @@ func (im IBCModule) OnChanOpenAck(
 	counterpartyChannelId string,
 	counterpartyVersion string,
 ) error {
-	// if counterpartyVersion != types.Version {
-	// 	return sdkerrors.Wrapf(types.ErrInvalidVersion, "invalid counterparty version: %s, expected %s", counterpartyVersion, types.Version)
-	// }
-	// return nil
-
 	return im.app.OnChanOpenAck(
 		ctx,
 		portID,
@@ -151,8 +104,6 @@ func (im IBCModule) OnChanOpenConfirm(
 	portID,
 	channelID string,
 ) error {
-	// return nil
-
 	return im.app.OnChanOpenConfirm(
 		ctx,
 		portID,
@@ -166,9 +117,6 @@ func (im IBCModule) OnChanCloseInit(
 	portID,
 	channelID string,
 ) error {
-	// // Disallow user-initiated channel closing for channels
-	// return sdkerrors.Wrap(sdkerrors.ErrInvalidRequest, "user cannot close channel")
-
 	return im.app.OnChanCloseInit(
 		ctx,
 		portID,
@@ -182,8 +130,6 @@ func (im IBCModule) OnChanCloseConfirm(
 	portID,
 	channelID string,
 ) error {
-	// return nil
-
 	return im.app.OnChanCloseConfirm(
 		ctx,
 		portID,
@@ -200,13 +146,13 @@ func (im IBCModule) OnRecvPacket(
 	// TODO: below is rough flow in comments
 	// 1. unmarshall the packet
 	// 2. check for valid memo and receiver fields
-	// 3. check if autopilot metadata is there in memo
-	// 4. if not autopilot packet, directly send the packet down the stack
-	// 5. if autopilot packet, update the sender, extract metdata and send the packet down the stack
-	// 6. do the autopilot related action from the packet memo and this can be moved to keeper
+	// 3. check if autocctp metadata is there in memo
+	// 4. if not autocctp packet, directly send the packet down the stack
+	// 5. if autocctp packet, update the sender, extract metdata and send the packet down the stack
+	// 6. do the autocctp related action from the packet memo and this can be moved to keeper
 
 	im.keeper.Logger(ctx).Info(
-		fmt.Sprintf("OnRecvPacket (autopilot): Sequence: %d, Source: %s, %s; Destination: %s, %s",
+		fmt.Sprintf("OnRecvPacket (autocctp): Sequence: %d, Source: %s, %s; Destination: %s, %s",
 			modulePacket.Sequence,
 			modulePacket.SourcePort,
 			modulePacket.SourceChannel,
@@ -247,33 +193,30 @@ func (im IBCModule) OnRecvPacket(
 		return im.app.OnRecvPacket(ctx, modulePacket, relayer)
 	}
 
-	// parse out any autopilot forwarding info
+	// parse out any autocctp forwarding info
 	autoCctpMetadata, err := types.ParseAutoCctpMetadata(metadata)
 	if err != nil {
 		return channeltypes.NewErrorAcknowledgement(err)
 	}
 
-	// If the parsed metadata is nil, that means there is no autopilot forwarding logic
+	// If the parsed metadata is nil, that means there is no autocctp forwarding logic
 	// Pass the packet down to the next middleware
 	// PFM packets will also go down this path
 	if autoCctpMetadata == nil {
 		return im.app.OnRecvPacket(ctx, modulePacket, relayer)
 	}
 
-	//// At this point, we are officially dealing with an autopilot packet
+	// -- At this point, we are officially dealing with an autocctp packet --
 
 	// Update the reciever in the packet data so that we can pass the packet down the stack
-	// (since the "receiver" may have technically been a full JSON memo)
+	// (since the "receiver" may have technically been a full JSON memo, in case of ibc-go before v5)
 	tokenPacketData.Receiver = autoCctpMetadata.Receiver
 
 	// For autopilot liquid stake and forward, we'll override the receiver with a hashed address
 	// The hashed address will also be the sender of the outbound transfer
 	// This is to prevent impersonation at downstream zones
 	// We can identify the forwarding step by whether there's a non-empty IBC receiver field
-	if routingInfo, ok := autoCctpMetadata.RoutingInfo.(types.CctpPacketMetadata); ok &&
-		routingInfo.Action == types.AutoCctp && routingInfo.IbcReceiver != "" {
-
-		var err error
+	if _, ok := autoCctpMetadata.RoutingInfo.(types.CctpPacketMetadata); ok {
 		hashedReceiver, err := types.GenerateHashedAddress(modulePacket.DestinationChannel, tokenPacketData.Sender)
 		if err != nil {
 			return channeltypes.NewErrorAcknowledgement(err)
@@ -296,36 +239,30 @@ func (im IBCModule) OnRecvPacket(
 		return ack
 	}
 
-	autopilotParams := im.keeper.GetParams(ctx)
+	autocctpParams := im.keeper.GetParams(ctx)
 	sender := tokenPacketData.Sender
 
-	// If the transfer was successful, then route to the corresponding module, if applicable
-	switch routingInfo := autoCctpMetadata.RoutingInfo.(type) {
-	case types.CctpPacketMetadata:
-		// If cctp routing is inactive (but the packet had routing info in the memo) return an ack error
-		if !autopilotParams.CctpActive {
+	// If cctp routing is inactive (but the packet had routing info in the memo) return an ack error
+	if !autocctpParams.CctpActive {
+		im.keeper.Logger(ctx).Error(
+			fmt.Sprintf("Packet from %s had cctp routing info but autopilot cctp routing is disabled", sender),
+		)
+		return channeltypes.NewErrorAcknowledgement(types.ErrAutoCctpInactive)
+	}
+
+	im.keeper.Logger(ctx).Info(fmt.Sprintf("Forwarding packet from %s to cctp route", sender))
+
+	// Try to perform cctp transfer - return an ack error if it fails,
+	// otherwise return the ack generated from the earlier packet propogation
+	if routingInfo, ok := autoCctpMetadata.RoutingInfo.(types.CctpPacketMetadata); ok {
+		if err := im.keeper.TryCctp(ctx, modulePacket, tokenPacketData, routingInfo); err != nil {
 			im.keeper.Logger(ctx).Error(
-				fmt.Sprintf("Packet from %s had cctp routing info but autopilot cctp routing is disabled", sender),
+				fmt.Sprintf("Error doing cctp transfer for %s: %s", sender, err.Error()),
 			)
-			return channeltypes.NewErrorAcknowledgement(types.ErrAutoCctpInactive)
+			return channeltypes.NewErrorAcknowledgement(err)
 		}
-		im.keeper.Logger(ctx).Info(fmt.Sprintf("Forwarding packet from %s to cctp route", sender))
-
-		switch routingInfo.Action {
-		case types.AutoCctp:
-			// Try to perform cctp transfer - return an ack error if it fails,
-			// otherwise return the ack generated from the earlier packet propogation
-			if err := im.keeper.TryCctp(ctx, modulePacket, tokenPacketData, routingInfo); err != nil {
-				im.keeper.Logger(ctx).Error(
-					fmt.Sprintf("Error doing cctp transfer for %s: %s", sender, err.Error()),
-				)
-				return channeltypes.NewErrorAcknowledgement(err)
-			}
-		}
-
 		return ack
-
-	default:
+	} else {
 		return channeltypes.NewErrorAcknowledgement(errorsmod.Wrapf(types.ErrUnsupportedRoute, "%T", routingInfo))
 	}
 }

@@ -9,15 +9,9 @@ import (
 
 const AutoCctp = "AutoCctp"
 
-// const RedeemStake = "RedeemStake"
-
-// Packet metadata info specific to Stakeibc (e.g. 1-click cctp transfer)
+// Packet metadata info specific to autocctp (e.g. 1-click cctp transfer)
 type CctpPacketMetadata struct {
-	Action string `json:"action"`
-	// TODO [cleanup]: Rename to FallbackAddress
-	// TODO: check if below ones are needed
 	NobleAddress    string
-	IbcReceiver     string `json:"ibc_receiver,omitempty"`
 	TransferChannel string `json:"transfer_channel,omitempty"`
 
 	// CCTP specific
@@ -25,18 +19,15 @@ type CctpPacketMetadata struct {
 	MintRecipient     string `json:"mint_recipient,omitempty"`
 }
 
-// Validate stakeibc packet metadata fields
-// including the stride address and action type
+// Validate autocctp packet metadata fields
+// including the noble address and action type
 func (m CctpPacketMetadata) Validate() error {
 	_, err := sdk.AccAddressFromBech32(m.NobleAddress)
 	if err != nil {
 		return err
 	}
-	switch m.Action {
-	case AutoCctp:
-	default:
-		return errorsmod.Wrapf(ErrUnsupportedCctpAction, "action %s is not supported", m.Action)
-	}
+	// TODO: see if this error msg for action type is needed
+	// return errorsmod.Wrapf(ErrUnsupportedCctpAction, "action %s is not supported", m.Action)
 
 	return nil
 }
@@ -73,23 +64,14 @@ func ParseAutoCctpMetadata(metadata string) (*AutoCctpMetadata, error) {
 
 	// Parse the packet info into the specific module type
 	// We increment the module count to ensure only one module type was provided
-	moduleCount := 0
 	var routingInfo ModuleRoutingInfo
-	if raw.AutoCctp.Cctp != nil {
-		// override the stride address with the receiver address
-		raw.AutoCctp.Cctp.NobleAddress = raw.AutoCctp.Receiver
-		moduleCount++
-		routingInfo = *raw.AutoCctp.Cctp
-	}
-	// if raw.AutoCctp.Claim != nil {
-	// 	// override the stride address with the receiver address
-	// 	raw.AutoCctp.Claim.NobleAddress = raw.AutoCctp.Receiver
-	// 	moduleCount++
-	// 	routingInfo = *raw.AutoCctp.Claim
-	// }
-	if moduleCount != 1 {
+	if raw.AutoCctp.Cctp == nil {
 		return nil, errorsmod.Wrapf(ErrInvalidPacketMetadata, ErrInvalidModuleRoutes.Error())
 	}
+
+	// override the noble address with the receiver address
+	raw.AutoCctp.Cctp.NobleAddress = raw.AutoCctp.Receiver
+	routingInfo = *raw.AutoCctp.Cctp
 
 	// Validate the packet info according to the specific module type
 	if err := routingInfo.Validate(); err != nil {

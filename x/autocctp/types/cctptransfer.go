@@ -16,7 +16,6 @@ type RawPacketMetadata struct {
 	AutoCctp *struct {
 		Receiver string              `json:"receiver"`
 		Cctp     *CctpPacketMetadata `json:"cctp,omitempty"`
-		// Claim    *ClaimPacketMetadata    `json:"claim,omitempty"`
 	} `json:"autocctp"`
 	Forward *interface{} `json:"forward"`
 }
